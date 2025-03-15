@@ -9,87 +9,85 @@ const PLAYERS_TABLE = "Players";
 const Leaderboard = () => {
     const [scores, setScores] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sortOrder, setSortOrder] = useState("desc"); // Default: Descending (Highest to Lowest)
 
     useEffect(() => {
-    const fetchScores = async () => {
-        try {
-            console.log("🔄 Fetching leaderboard data...");
+        const fetchScores = async () => {
+            try {
+                console.log("🔄 Fetching leaderboard data...");
 
-            // Fetch scores from Airtable
-            const scoresResponse = await axios.get(
-                `https://api.airtable.com/v0/${BASE_ID}/${SCORES_TABLE}`,
-                { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
-            );
+                // Fetch scores from Airtable
+                const scoresResponse = await axios.get(
+                    `https://api.airtable.com/v0/${BASE_ID}/${SCORES_TABLE}`,
+                    { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
+                );
 
-            console.log("✅ Scores API Response:", scoresResponse.data.records);
+                console.log("✅ Scores API Response:", scoresResponse.data.records);
 
-            // Fetch players from Airtable
-            const playersResponse = await axios.get(
-                `https://api.airtable.com/v0/${BASE_ID}/${PLAYERS_TABLE}`,
-                { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
-            );
+                // Fetch players from Airtable
+                const playersResponse = await axios.get(
+                    `https://api.airtable.com/v0/${BASE_ID}/${PLAYERS_TABLE}`,
+                    { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
+                );
 
-            console.log("✅ Players API Response:", playersResponse.data.records);
+                console.log("✅ Players API Response:", playersResponse.data.records);
 
-            // Convert players to a dictionary {recordID: playerName}
-            const playersDict = {};
-            playersResponse.data.records.forEach(player => {
-                console.log("🔹 Player Record:", player);
-                playersDict[player.id] = player.fields["Name"];
-            });
+                // Convert players to a dictionary {recordID: playerName}
+                const playersDict = {};
+                playersResponse.data.records.forEach(player => {
+                    playersDict[player.id] = player.fields["Name"];
+                });
 
-            console.log("✅ Players Dictionary:", playersDict);
+                // Merge scores by player
+                const mergedScores = {};
+                scoresResponse.data.records.forEach(score => {
+                    const playerID = Array.isArray(score.fields["Player ID"]) && score.fields["Player ID"].length > 0
+                        ? score.fields["Player ID"][0]
+                        : null;
 
-            // Merge scores by player
-            const mergedScores = {};
+                    const playerName = playerID ? (playersDict[playerID] || "Unknown Player").trim() : "Unknown Player";
+                    const points = score.fields["Total Points"] || 0;
 
-            scoresResponse.data.records.forEach(score => {
-                console.log("🔹 Score Record:", score.fields);
+                    if (mergedScores[playerName]) {
+                        mergedScores[playerName] += points;
+                    } else {
+                        mergedScores[playerName] = points;
+                    }
+                });
 
-                // Ensure "Player ID" exists
-                const playerID = Array.isArray(score.fields["Player ID"]) && score.fields["Player ID"].length > 0
-                    ? score.fields["Player ID"][0]
-                    : null;
+                // Convert to array and sort by points
+                const sortedScores = Object.entries(mergedScores)
+                    .map(([playerName, totalPoints]) => ({ playerName, points: totalPoints }))
+                    .sort((a, b) => (sortOrder === "desc" ? b.points - a.points : a.points - b.points));
 
-                const playerName = playerID ? (playersDict[playerID] || "Unknown Player").trim().toLowerCase() : "Unknown Player";
-                const points = score.fields["Total Points"] || 0;
+                setScores(sortedScores);
+                setLoading(false);
+            } catch (error) {
+                console.error("❌ Error fetching leaderboard:", error);
+                setLoading(false);
+            }
+        };
 
-                // Merge scores by player name
-                if (mergedScores[playerName]) {
-                    mergedScores[playerName] += points;
-                } else {
-                    mergedScores[playerName] = points;
-                }
-            });
+        fetchScores();
+        const interval = setInterval(fetchScores, 30000);
+        return () => clearInterval(interval);
+    }, [sortOrder]); // Re-run when sorting changes
 
-            // Convert merged object into a sorted array
-            const sortedScoresArray = Object.entries(mergedScores)
-                .map(([playerName, totalPoints]) => ({ playerName, points: totalPoints }))
-                .sort((a, b) => b.points - a.points);
-
-            console.log("✅ Merged and Sorted Scores:", sortedScoresArray);
-
-            setScores(sortedScoresArray);
-            setLoading(false);
-        } catch (error) {
-            console.error("❌ Error fetching leaderboard:", error);
-            setLoading(false);
-        }
+    // Toggle sorting order
+    const toggleSortOrder = () => {
+        setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
     };
-
-    // Fetch leaderboard data when the component loads
-    fetchScores();
-
-    // Set up an interval to auto-refresh every 30 seconds
-    const interval = setInterval(fetchScores, 30000);
-
-    // Cleanup the interval when the component unmounts
-    return () => clearInterval(interval);
-}, []);
 
     return (
         <div style={{ textAlign: "center", fontFamily: "Arial, sans-serif" }}>
-            <h2 style={{ color: "#d32f2f", fontSize: "2em" }}>🏎️ F1 Fantasy Leaderboard 🏎️🏎️🏎️</h2>
+            <h2 style={{ color: "#d32f2f", fontSize: "2em" }}>🏎️ F1 Fantasy Leaderboard</h2>
+
+            <button 
+                onClick={toggleSortOrder} 
+                style={{ marginBottom: "10px", padding: "8px", fontSize: "1em", cursor: "pointer" }}
+            >
+                {sortOrder === "desc" ? "Sort: 🔼 Low to High" : "Sort: 🔽 High to Low"}
+            </button>
 
             {loading ? (
                 <p style={{ fontSize: "1.2em", color: "#555" }}>Loading leaderboard...</p>
@@ -145,5 +143,4 @@ const topPlayerStyle = {
     fontWeight: "bold"
 };
 
-// ✅ Make sure this is the LAST LINE in the file:
 export default Leaderboard;
