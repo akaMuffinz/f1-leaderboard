@@ -11,74 +11,81 @@ const Leaderboard = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchScores = async () => {
-            try {
-                console.log("🔄 Fetching leaderboard data...");
+    const fetchScores = async () => {
+        try {
+            console.log("🔄 Fetching leaderboard data...");
 
-                // Fetch scores from Airtable
-                const scoresResponse = await axios.get(
-                    `https://api.airtable.com/v0/${BASE_ID}/${SCORES_TABLE}`,
-                    { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
-                );
+            // Fetch scores from Airtable
+            const scoresResponse = await axios.get(
+                `https://api.airtable.com/v0/${BASE_ID}/${SCORES_TABLE}`,
+                { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
+            );
 
-                console.log("✅ Scores API Response:", scoresResponse.data.records);
+            console.log("✅ Scores API Response:", scoresResponse.data.records);
 
-                // Fetch players from Airtable
-                const playersResponse = await axios.get(
-                    `https://api.airtable.com/v0/${BASE_ID}/${PLAYERS_TABLE}`,
-                    { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
-                );
+            // Fetch players from Airtable
+            const playersResponse = await axios.get(
+                `https://api.airtable.com/v0/${BASE_ID}/${PLAYERS_TABLE}`,
+                { headers: { Authorization: `Bearer ${AIRTABLE_ACCESS_TOKEN}` } }
+            );
 
-                console.log("✅ Players API Response:", playersResponse.data.records);
+            console.log("✅ Players API Response:", playersResponse.data.records);
 
-                // Convert players to a dictionary {recordID: playerName}
-                const playersDict = {};
-                playersResponse.data.records.forEach(player => {
-                    console.log("🔹 Player Record:", player);
-                    playersDict[player.id] = player.fields["Name"];
-                });
+            // Convert players to a dictionary {recordID: playerName}
+            const playersDict = {};
+            playersResponse.data.records.forEach(player => {
+                console.log("🔹 Player Record:", player);
+                playersDict[player.id] = player.fields["Name"];
+            });
 
-                console.log("✅ Players Dictionary:", playersDict);
+            console.log("✅ Players Dictionary:", playersDict);
 
-                // Merge scores by player
-                const mergedScores = {};
+            // Merge scores by player
+            const mergedScores = {};
 
-                scoresResponse.data.records.forEach(score => {
-                    console.log("🔹 Score Record:", score.fields);
+            scoresResponse.data.records.forEach(score => {
+                console.log("🔹 Score Record:", score.fields);
 
-                    // Ensure "Player ID" exists
-                    const playerID = Array.isArray(score.fields["Player ID"]) && score.fields["Player ID"].length > 0
-                        ? score.fields["Player ID"][0]
-                        : null;
+                // Ensure "Player ID" exists
+                const playerID = Array.isArray(score.fields["Player ID"]) && score.fields["Player ID"].length > 0
+                    ? score.fields["Player ID"][0]
+                    : null;
 
-                    const playerName = playerID ? (playersDict[playerID] || "Unknown Player").trim().toLowerCase() : "Unknown Player";
-                    const points = score.fields["Total Points"] || 0;
+                const playerName = playerID ? (playersDict[playerID] || "Unknown Player").trim().toLowerCase() : "Unknown Player";
+                const points = score.fields["Total Points"] || 0;
 
-                    // Merge scores by player name
-                    if (mergedScores[playerName]) {
-                        mergedScores[playerName] += points;
-                    } else {
-                        mergedScores[playerName] = points;
-                    }
-                });
+                // Merge scores by player name
+                if (mergedScores[playerName]) {
+                    mergedScores[playerName] += points;
+                } else {
+                    mergedScores[playerName] = points;
+                }
+            });
 
-                // Convert merged object into a sorted array
-                const sortedScoresArray = Object.entries(mergedScores)
-                    .map(([playerName, totalPoints]) => ({ playerName, points: totalPoints }))
-                    .sort((a, b) => b.points - a.points);
+            // Convert merged object into a sorted array
+            const sortedScoresArray = Object.entries(mergedScores)
+                .map(([playerName, totalPoints]) => ({ playerName, points: totalPoints }))
+                .sort((a, b) => b.points - a.points);
 
-                console.log("✅ Merged and Sorted Scores:", sortedScoresArray);
+            console.log("✅ Merged and Sorted Scores:", sortedScoresArray);
 
-                setScores(sortedScoresArray);
-                setLoading(false);
-            } catch (error) {
-                console.error("❌ Error fetching leaderboard:", error);
-                setLoading(false);
-            }
-        };
+            setScores(sortedScoresArray);
+            setLoading(false);
+        } catch (error) {
+            console.error("❌ Error fetching leaderboard:", error);
+            setLoading(false);
+        }
+    };
 
-        fetchScores();
-    }, []);
+    // Fetch leaderboard data when the component loads
+    fetchScores();
+
+    // Set up an interval to auto-refresh every 30 seconds
+    const interval = setInterval(fetchScores, 30000);
+
+    // Cleanup the interval when the component unmounts
+    return () => clearInterval(interval);
+}, []);
 
     return (
         <div style={{ textAlign: "center", fontFamily: "Arial, sans-serif" }}>
