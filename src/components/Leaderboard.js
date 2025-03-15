@@ -82,7 +82,7 @@ const Leaderboard = () => {
 
     return (
         <div style={{ textAlign: "center", fontFamily: "Arial, sans-serif" }}>
-            <h2 style={{ color: "#d32f2f", fontSize: "2em" }}>🏎️ F1 Fantasy Leaderboard 🏎️</h2>
+            <h2 style={{ color: "#d32f2f", fontSize: "2em" }}>🏎️ F1 Fantasy Leaderboard 🏎️🏎️🏎️</h2>
 
             {loading ? (
                 <p style={{ fontSize: "1.2em", color: "#555" }}>Loading leaderboard...</p>
